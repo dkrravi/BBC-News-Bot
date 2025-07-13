@@ -1,0 +1,367 @@
+{
+  "name": "BBC News Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour",
+              "minute": 15
+            }
+          ]
+        },
+        "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA"
+      },
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1660,
+        -880
+      ],
+      "id": "7a075ad5-0f9b-4e1f-b40b-10eca4ac887d",
+      "name": "New YouTube Video"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDnZwqyGPnXvxqHRH-hl4r2Elgfs82xDsc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [\n  {\n    \"parts\": [\n      {\n        \"text\": \"Summarize the following transcript in 7 simple lines using simple words:\\n\\n\" + $json[\"transcript\"]\n      }\n    ]\n  }\n] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -760,
+        -900
+      ],
+      "id": "74b066c3-367b-4771-a299-01da21311fc1",
+      "name": "Gemini 1.5 Flash – Summarizer"
+    },
+    {
+      "parameters": {
+        "content": "Used to format clean JSON for the Render blog API.",
+        "height": 80,
+        "width": 180
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        80
+      ],
+      "id": "2e49b0a6-49e0-4faf-a25b-f898ef55c9e0",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "operation": "getTranscript",
+        "videoId": "={{$json[\"link\"]}}",
+        "text": true
+      },
+      "type": "n8n-nodes-supadata.supadata",
+      "typeVersion": 1,
+      "position": [
+        -1380,
+        -900
+      ],
+      "id": "2401d4d0-9336-4a3d-b358-d98b4d8fd85f",
+      "name": "Transcript Extractor (Supadata)",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supadataApi": {
+          "id": "6OhO7YTLuPyjKYiB",
+          "name": "Supadata account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  title: $json[\"title\"],\n  link: $json[\"link\"],\n  pubDate: $json[\"pubDate\"]\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        -1180
+      ],
+      "id": "6a93d4e1-72e2-4b62-882d-11d0e8eff9cf",
+      "name": "Extract Basic Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  title: $node[\"New YouTube Video\"].json[\"title\"],\n  link: $node[\"New YouTube Video\"].json[\"link\"],\n  pubDate: $node[\"New YouTube Video\"].json[\"pubDate\"],\n  transcript: $json[\"content\"]\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1080,
+        -900
+      ],
+      "id": "06baa8aa-0ea1-4c85-872f-e96adc66519f",
+      "name": "Merge Transcript with Metadata"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "139b5afe-1051-4b4d-a4b1-267aa245bd0d",
+              "name": "title",
+              "value": "={{$node[\"New YouTube Video\"].json[\"title\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "61f781b1-1276-4951-bcc9-fcd7f531cde6",
+              "name": "link",
+              "value": "={{$node[\"New YouTube Video\"].json[\"link\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "164d1bcd-585c-44d9-939d-5c89b87f6119",
+              "name": "date",
+              "value": "={{$node[\"New YouTube Video\"].json[\"pubDate\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "5e5220dd-a305-4402-8667-e8106ed993c7",
+              "name": "summary",
+              "value": "={{$json[\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"]}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -520,
+        -900
+      ],
+      "id": "c350589d-7ff4-40d6-aefa-7b259aa04e9c",
+      "name": "Final Data Mapping"
+    },
+    {
+      "parameters": {
+        "chatId": "7732216293",
+        "text": "={{ \"📰 \" + $json.title + \"\\n\\n📅 Date: \" + $json.date + \"\\n🔗 Link: \" + $json.link + \"\\n\\n📝 Summary:\\n\" + $json.summary }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -760,
+        -640
+      ],
+      "id": "aeb60b5a-c368-4920-8277-dcf3e6eddecb",
+      "name": "Send Message",
+      "webhookId": "8de9d520-c179-40c0-ac65-ece453632b77",
+      "credentials": {
+        "telegramApi": {
+          "id": "A90ShkNG23B70xFv",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Check BBC News every 15 mins for new video",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1780,
+        -980
+      ],
+      "id": "5fa7b304-310e-4d6f-aa65-86cca0f2baf5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Pick title, link, and date from video feed",
+        "height": 80,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1320,
+        -1220
+      ],
+      "id": "273aaf2b-6e0a-4a13-a306-c515e2d22a21",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Grab full transcript using the video link.",
+        "height": 80,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1440,
+        -720
+      ],
+      "id": "e5728a52-f1e1-4887-a622-1dcebbd86719",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Combine title, link, date, and transcript.",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        -1000
+      ],
+      "id": "20407e32-ab5d-4995-9838-89dc67f19b0f",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Summarize transcript in 7 simple lines.",
+        "height": 80,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -1000
+      ],
+      "id": "04c63165-35fb-4614-8d82-44f3fd0a364c",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "Store title, date, link, and summary together.",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -1000
+      ],
+      "id": "a3d62e41-8aa0-4c7b-8a3d-81d8bc2b7188",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "Send news digest to Telegram via @YTNewsBot.",
+        "height": 80,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -700
+      ],
+      "id": "8b3b333b-b70b-4568-9dca-69ffedf9d7ed",
+      "name": "Sticky Note7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "New YouTube Video": {
+      "main": [
+        [
+          {
+            "node": "Extract Basic Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 1.5 Flash – Summarizer": {
+      "main": [
+        [
+          {
+            "node": "Final Data Mapping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcript Extractor (Supadata)": {
+      "main": [
+        [
+          {
+            "node": "Merge Transcript with Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Basic Fields": {
+      "main": [
+        [
+          {
+            "node": "Transcript Extractor (Supadata)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Transcript with Metadata": {
+      "main": [
+        [
+          {
+            "node": "Gemini 1.5 Flash – Summarizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Data Mapping": {
+      "main": [
+        [
+          {
+            "node": "Send Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d0b39b23-c291-4637-a7e5-330e94095d70",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1b7a7a2943c0e21a6ff0e6b8d8c6154f4504ed40c9e297bb4e83356372c87c5c"
+  },
+  "id": "yzYK98g13MhCPlf5",
+  "tags": []
+}
